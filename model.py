@@ -47,8 +47,14 @@ def main():
     df = pd.read_csv(url)
 
     # Store selection
-    store_codes = sorted([code for code in df['facility_code'].unique() if not code.startswith("LKST01")], reverse=True)
-    store_code = st.selectbox("Select Store Code", store_codes)
+    # Create a list of unique (store_code, city) pairs, excluding codes starting with "LKST01"
+    store_city_pairs = df[['facility_code', 'City']].drop_duplicates()
+    store_city_pairs['label'] = store_city_pairs['facility_code'] + " - " + store_city_pairs['City']
+    store_city_pairs = store_city_pairs.sort_values('label', ascending=False)
+    options = store_city_pairs['label'].tolist()
+    selected_label = st.selectbox("Select Store Code and City", options)
+    selected_store_code = selected_label.split(" - ")[0]
+
 
     if store_code:
         count_matrix = analyze_prediction_distribution(df, store_code)
