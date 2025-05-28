@@ -47,8 +47,8 @@ def main():
     df = pd.read_csv(url)
 
     # Store selection
-    store_codes = sorted(df['facility_code'].unique(), reverse=True)
-    store_code = st.selectbox("Select Store Code", sorted(store_codes))
+    store_codes = sorted([code for code in df['facility_code'].unique() if not code.startswith("LKST01")], reverse=True)
+    store_code = st.selectbox("Select Store Code", store_codes)
 
     if store_code:
         count_matrix = analyze_prediction_distribution(df, store_code)
