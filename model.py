@@ -71,15 +71,6 @@ def main():
         plt.tight_layout()
 
 
-        st.subheader("📦 Boxplot of Ratios")
-        plt.figure(figsize=(8, 2))
-        sns.boxplot(x=store_df['Ratio'], color='lightcoral')
-        plt.xlabel("Ratio (Prediction / Actual)")
-        plt.title(f"Boxplot of Ratios — Store {store_code}")
-        st.pyplot(plt.gcf())
-        plt.clf()
-
-
         st.pyplot(plt.gcf())
         plt.clf()
 
