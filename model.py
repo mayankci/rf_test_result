@@ -52,10 +52,13 @@ def main():
     store_city_pairs = store_city_pairs.sort_values('label', ascending=True)
 
     # Text input for filtering
-    search_term = st.text_input("🔍 Search Store Code or City")
+    search_term = st.text_input("🔍 Search Store Code or City").lower()
 
     if search_term:
-        filtered = store_city_pairs[store_city_pairs['label'].str.contains(search_term, case=False, na=False)]
+        filtered = store_city_pairs[
+            store_city_pairs['facility_code'].str.lower().str.contains(search_term) |
+            store_city_pairs['City'].str.lower().str.contains(search_term)
+        ]
     else:
         filtered = store_city_pairs
 
@@ -86,6 +89,7 @@ def main():
 
         st.pyplot(plt.gcf())
         plt.clf()
+
 
 # Run Streamlit app
 if __name__ == "__main__":
