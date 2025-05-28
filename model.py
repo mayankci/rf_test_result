@@ -53,7 +53,7 @@ def main():
     store_city_pairs = store_city_pairs.sort_values('label', ascending=False)
     options = store_city_pairs['label'].tolist()
     selected_label = st.selectbox("Select Store Code and City", options)
-    selected_store_code = selected_label.split(" - ")[0]
+    store_code = selected_label.split(" - ")[0]
 
 
     if store_code:
