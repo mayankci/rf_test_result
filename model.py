@@ -46,15 +46,23 @@ def main():
     # Load dataset
     df = pd.read_csv(url)
 
-    # Store selection
-    # Create a list of unique (store_code, city) pairs, excluding codes starting with "LKST01"
-    store_city_pairs = df[['facility_code', 'City']].drop_duplicates()
+    # Prepare store-city labels (excluding codes starting with "LKST01")
+    store_city_pairs = df[~df['facility_code'].str.startswith("LKST01")][['facility_code', 'City']].drop_duplicates()
     store_city_pairs['label'] = store_city_pairs['facility_code'] + " - " + store_city_pairs['City']
-    store_city_pairs = store_city_pairs.sort_values('label', ascending=False)
-    options = store_city_pairs['label'].tolist()
-    selected_label = st.selectbox("Select Store Code and City", options)
-    store_code = selected_label.split(" - ")[0]
+    store_city_pairs = store_city_pairs.sort_values('label', ascending=True)
 
+    # Text input for filtering
+    search_term = st.text_input("🔍 Search Store Code or City")
+
+    if search_term:
+        filtered = store_city_pairs[store_city_pairs['label'].str.contains(search_term, case=False, na=False)]
+    else:
+        filtered = store_city_pairs
+
+    options = filtered['label'].tolist()
+    selected_label = st.selectbox("🏬 Select Store Code and City", options)
+
+    store_code = selected_label.split(" - ")[0]
 
     if store_code:
         count_matrix = analyze_prediction_distribution(df, store_code)
@@ -68,14 +76,13 @@ def main():
 
         # Show heatmap
         st.subheader("🔥 Heatmap of Prediction vs Ratio")
-        plt.figure(figsize=(16, 10))  # Bigger plot
+        plt.figure(figsize=(16, 10))
         ax = sns.heatmap(count_matrix.iloc[:, :-1], annot=True, fmt='d', cmap='Blues')
         plt.yticks(rotation=0)
         plt.ylabel('Ratio (Prediction / Actual, rounded to 0.1)')
         plt.xlabel('Predicted ROS (Rounded to 0.01)')
         plt.title(f'Prediction vs Actual Ratio — Store {store_code}')
         plt.tight_layout()
-
 
         st.pyplot(plt.gcf())
         plt.clf()
