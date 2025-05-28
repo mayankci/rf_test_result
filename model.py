@@ -46,47 +46,39 @@ def main():
     # Load dataset
     df = pd.read_csv(url)
 
-    # Prepare store-city labels (excluding codes starting with "LKST01")
-    store_city_pairs = df[~df['facility_code'].str.startswith("LKST01")][['facility_code', 'City']].drop_duplicates()
-    store_city_pairs['label'] = store_city_pairs['facility_code'] + " - " + store_city_pairs['City']
-    store_city_pairs = store_city_pairs.sort_values('label', ascending=True)
+    # Filter out invalid store codes
+    df = df[~df['facility_code'].str.startswith("LKST01")]
 
-    # Text input for filtering
-    search_term = st.text_input("🔍 Search Store Code or City").lower()
+    # Drop duplicates to get unique store-city pairs
+    df_unique = df[['facility_code', 'City']].drop_duplicates()
 
-    if search_term:
-        filtered = store_city_pairs[
-            store_city_pairs['facility_code'].str.lower().str.contains(search_term) |
-            store_city_pairs['City'].str.lower().str.contains(search_term)
-        ]
-    else:
-        filtered = store_city_pairs
+    # First Dropdown: City
+    cities = sorted(df_unique['City'].dropna().unique())
+    selected_city = st.selectbox("🏙️ Select City", cities)
 
-    options = filtered['label'].tolist()
-    selected_label = st.selectbox("🏬 Select Store Code and City", options)
+    # Second Dropdown: Stores in that City
+    stores_in_city = df_unique[df_unique['City'] == selected_city]
+    store_options = sorted(stores_in_city['facility_code'].unique())
+    selected_store = st.selectbox("🏬 Select Store in " + selected_city, store_options)
 
-    store_code = selected_label.split(" - ")[0]
+    if selected_store:
+        count_matrix = analyze_prediction_distribution(df, selected_store)
 
-    if store_code:
-        count_matrix = analyze_prediction_distribution(df, store_code)
-
-        # Clean index to show only 1 decimal place for Ratio
+        # Format index
         count_matrix.index = [f"{val:.1f}" for val in count_matrix.index]
 
-        # Show table
-        st.subheader(f"🧾 Distribution Table — Store {store_code}")
+        # Display table
+        st.subheader(f"🧾 Distribution Table — Store {selected_store}")
         st.dataframe(count_matrix)
 
-        # Show heatmap
+        # Heatmap
         st.subheader("🔥 Heatmap of Prediction vs Ratio")
         plt.figure(figsize=(16, 10))
-        ax = sns.heatmap(count_matrix.iloc[:, :-1], annot=True, fmt='d', cmap='Blues')
+        sns.heatmap(count_matrix.iloc[:, :-1], annot=True, fmt='d', cmap='Blues')
         plt.yticks(rotation=0)
         plt.ylabel('Ratio (Prediction / Actual, rounded to 0.1)')
         plt.xlabel('Predicted ROS (Rounded to 0.01)')
-        plt.title(f'Prediction vs Actual Ratio — Store {store_code}')
-        plt.tight_layout()
-
+        plt.title(f'Prediction vs Actual Ratio — Store {selected_store}')
         st.pyplot(plt.gcf())
         plt.clf()
 
