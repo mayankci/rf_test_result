@@ -49,15 +49,14 @@ def main():
         st.subheader("Heatmap of Counts")
         plt.figure(figsize=(12, 6))
         ax = sns.heatmap(count_matrix.iloc[:, :-1], annot=True, fmt='d', cmap='Blues')
-        ylabels = [f'{val:.1f}' for val in count_matrix.index]
-        ax.set_yticklabels(ylabels, rotation=0)
+        plt.yticks(rotation=0)  # Optional: rotate ticks for readability
         plt.ylabel('Ratio (Prediction / Actual, rounded to 0.1)')
         plt.xlabel('Predicted ROS (Rounded to 0.01)')
         plt.title(f'Prediction vs Actual Ratio Distribution — Store {store_code}')
         plt.tight_layout()
-
         st.pyplot(plt.gcf())
         plt.clf()
+
 
 if __name__ == "__main__":
     main()
