@@ -2,12 +2,11 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import joblib
-import requests
-import io
 import gdown
-import joblib
-import io
+import seaborn as sns
+import matplotlib.pyplot as plt
 
+# Model and Encoder Google Drive IDs
 MODEL_FILE_ID = "1G9Q04Nt2d__lm3Ow3QQ7IoU5Wd1tAziG"
 ENCODER_FILE_ID = "1CiGHQzhZI_Iw80s7kG9NWUHLaJvHQqgF"
 
@@ -16,7 +15,6 @@ def load_model_and_encoder():
     model_url = f"https://drive.google.com/uc?id={MODEL_FILE_ID}"
     encoder_url = f"https://drive.google.com/uc?id={ENCODER_FILE_ID}"
 
-    # Download model file locally
     gdown.download(model_url, "model.pkl", quiet=True)
     gdown.download(encoder_url, "encoder.pkl", quiet=True)
 
@@ -27,7 +25,6 @@ def load_model_and_encoder():
 
 model, encoder = load_model_and_encoder()
 
-# Required columns for prediction
 valid_features = [
     'AG GROUP',
     'LO National ROS',
@@ -42,22 +39,45 @@ valid_features = [
 
 categorical_cols = ['AG GROUP']
 
-# Streamlit UI
-st.title("📈 Predict Store X PID ROS")
-uploaded_file = st.file_uploader("📁 Upload your input CSV", type=['csv'])
+def analyze_prediction_distribution(df, store_code):
+    store_df = df[df['facility_code'] == store_code].copy()
+    store_df['Ratio'] = store_df['Predicted Store X PID ROS'] / store_df['Actual'].replace(0, np.nan)
+    store_df['Ratio'] = store_df['Ratio'].fillna(0)
+    store_df['Ratio'] = round(store_df['Ratio'] / 0.1).astype(int) * 0.1
+    store_df['Actual'] = round(store_df['Actual'] / 0.1).astype(int) * 0.1
+    store_df['Predicted Store X PID ROS'] = round(store_df['Predicted Store X PID ROS'] / 0.01).astype(int) * 0.01
 
-if uploaded_file:
-    try:
-        df = pd.read_csv(uploaded_file)
+    count_matrix = store_df.pivot_table(
+        index='Ratio',
+        columns='Predicted Store X PID ROS',
+        aggfunc='size',
+        fill_value=0
+    )
 
-        # Check for required columns
-        missing = [col for col in valid_features if col not in df.columns]
-        if missing:
-            st.error(f"Missing required columns: {', '.join(missing)}")
-        else:
+    row_totals = count_matrix.sum(axis=1)
+    grand_total = row_totals.sum()
+    count_matrix['%'] = (row_totals / grand_total * 100).round(1)
+
+    count_matrix = count_matrix.reindex(sorted(count_matrix.columns[:-1]), axis=1).assign(**{'%': count_matrix['%']})
+
+    return count_matrix
+
+def main():
+    st.title("📈 Store X PID ROS Prediction + Distribution Analysis")
+
+    uploaded_file = st.file_uploader("📁 Upload input CSV (with required features)", type=['csv'])
+
+    if uploaded_file:
+        try:
+            df = pd.read_csv(uploaded_file)
+
+            missing = [col for col in valid_features if col not in df.columns]
+            if missing:
+                st.error(f"Missing required columns: {', '.join(missing)}")
+                return
+
+            # Encode categorical columns
             X = df[valid_features].copy()
-
-            # Encode categorical columns (OrdinalEncoder handles unknowns with -1)
             X[categorical_cols] = encoder.transform(X[categorical_cols])
 
             # Predict
@@ -69,76 +89,44 @@ if uploaded_file:
             csv = df.to_csv(index=False).encode("utf-8")
             st.download_button("⬇️ Download Results", csv, "predicted_output.csv", "text/csv")
 
-    except Exception as e:
-        st.error(f"❌ Error: {e}")
-else:
-    st.info("Upload a CSV file to make predictions.")
+            # Filter out invalid store codes if any column present (optional)
+            if 'facility_code' not in df.columns or 'City' not in df.columns:
+                st.warning("⚠️ Columns 'facility_code' and/or 'City' missing, cannot show distribution analysis.")
+                return
 
+            # Prepare for analysis
+            df = df[~df['facility_code'].astype(str).str.startswith("LKST01")]
+            df_unique = df[['facility_code', 'City']].drop_duplicates()
 
+            cities = sorted(df_unique['City'].dropna().unique())
+            selected_city = st.selectbox("🏙️ Select City", cities)
 
-import streamlit as st
-import pandas as pd
-import numpy as np
-import seaborn as sns
-import matplotlib.pyplot as plt
+            stores_in_city = df_unique[df_unique['City'] == selected_city]
+            store_options = sorted(stores_in_city['facility_code'].unique())
+            selected_store = st.selectbox("🏬 Select Store in " + selected_city, store_options)
 
-def analyze_prediction_distribution(df, store_code):
-    store_df = df[df['facility_code'] == store_code].copy()
-    store_df['Ratio'] = store_df['RandomForest_Prediction'] / store_df['Actual'].replace(0, np.nan)
-    store_df['Ratio'] = store_df['Ratio'].fillna(0)
-    store_df['Ratio'] = round(store_df['Ratio'] / 0.1).astype(int) * 0.1
-    store_df['Actual'] = round(store_df['Actual'] / 0.1).astype(int) * 0.1
-    store_df['RandomForest_Prediction'] = round(store_df['RandomForest_Prediction'] / 0.01).astype(int) * 0.01
-    count_matrix = store_df.pivot_table(
-        index='Ratio',
-        columns='RandomForest_Prediction',
-        aggfunc='size',
-        fill_value=0
-    )
-    row_totals = count_matrix.sum(axis=1)
-    grand_total = row_totals.sum()
-    count_matrix['%'] = (row_totals / grand_total * 100).round(1)
-    count_matrix = count_matrix.reindex(sorted(count_matrix.columns[:-1]), axis=1).assign(**{'%': count_matrix['%']})
-    return count_matrix
+            if selected_store:
+                count_matrix = analyze_prediction_distribution(df, selected_store)
+                count_matrix.index = [f"{val:.1f}" for val in count_matrix.index]
 
-def main():
-    st.title("📊 Store Prediction vs Actual Distribution")
-    try:
-        df
-    except NameError:
-        st.error("DataFrame 'df' with predictions not found in the app.")
-        return
+                st.subheader(f"🧾 Distribution Table — Store {selected_store}")
+                st.dataframe(count_matrix)
 
-    required_columns = {'facility_code', 'City', 'RandomForest_Prediction', 'Actual'}
-    if not required_columns.issubset(df.columns):
-        st.error(f"The DataFrame must contain columns: {', '.join(required_columns)}")
-        return
+                st.subheader("🔥 Heatmap of Prediction vs Ratio")
+                plt.figure(figsize=(16, 10))
+                sns.heatmap(count_matrix.iloc[:, :-1], annot=True, fmt='d', cmap='Blues')
+                plt.yticks(rotation=0)
+                plt.ylabel('Ratio (Prediction / Actual, rounded to 0.1)')
+                plt.xlabel('Predicted ROS (Rounded to 0.01)')
+                plt.title(f'Prediction vs Actual Ratio — Store {selected_store}')
+                st.pyplot(plt)
+                plt.clf()
 
-    df_unique = df[['facility_code', 'City']].drop_duplicates()
+        except Exception as e:
+            st.error(f"❌ Error processing file: {e}")
 
-    cities = sorted(df_unique['City'].dropna().unique())
-    selected_city = st.selectbox("🏙️ Select City", cities)
-
-    stores_in_city = df_unique[df_unique['City'] == selected_city]
-    store_options = sorted(stores_in_city['facility_code'].unique())
-    selected_store = st.selectbox("🏬 Select Store in " + selected_city, store_options)
-
-    if selected_store:
-        count_matrix = analyze_prediction_distribution(df, selected_store)
-        count_matrix.index = [f"{val:.1f}" for val in count_matrix.index]
-
-        st.subheader(f"🧾 Distribution Table — Store {selected_store}")
-        st.dataframe(count_matrix)
-
-        st.subheader("🔥 Heatmap of Prediction vs Ratio")
-        plt.figure(figsize=(16, 10))
-        sns.heatmap(count_matrix.iloc[:, :-1], annot=True, fmt='d', cmap='Blues')
-        plt.yticks(rotation=0)
-        plt.ylabel('Ratio (Prediction / Actual, rounded to 0.1)')
-        plt.xlabel('Predicted ROS (Rounded to 0.01)')
-        plt.title(f'Prediction vs Actual Ratio — Store {selected_store}')
-        st.pyplot(plt)
-        plt.clf()
+    else:
+        st.info("⬆️ Upload a CSV file to make predictions and analyze.")
 
 if __name__ == "__main__":
     main()
