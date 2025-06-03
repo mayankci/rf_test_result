@@ -4,20 +4,24 @@ import numpy as np
 import joblib
 import requests
 import io
+import gdown
+import joblib
+import io
 
-# Google Drive direct download links
-MODEL_URL = "https://drive.google.com/uc?export=download&id=1G9Q04Nt2d__lm3Ow3QQ7IoU5Wd1tAziG"
-ENCODER_URL = "https://drive.google.com/uc?export=download&id=1CiGHQzhZI_Iw80s7kG9NWUHLaJvHQqgF"
+MODEL_FILE_ID = "1G9Q04Nt2d__lm3Ow3QQ7IoU5Wd1tAziG"
+ENCODER_FILE_ID = "1CiGHQzhZI_Iw80s7kG9NWUHLaJvHQqgF"
 
 @st.cache_resource
 def load_model_and_encoder():
-    # Load model
-    model_response = requests.get(MODEL_URL)
-    model = joblib.load(io.BytesIO(model_response.content))
+    model_url = f"https://drive.google.com/uc?id={MODEL_FILE_ID}"
+    encoder_url = f"https://drive.google.com/uc?id={ENCODER_FILE_ID}"
 
-    # Load encoder
-    encoder_response = requests.get(ENCODER_URL)
-    encoder = joblib.load(io.BytesIO(encoder_response.content))
+    # Download model file locally
+    gdown.download(model_url, "model.pkl", quiet=True)
+    gdown.download(encoder_url, "encoder.pkl", quiet=True)
+
+    model = joblib.load("model.pkl")
+    encoder = joblib.load("encoder.pkl")
 
     return model, encoder
 
