@@ -77,7 +77,7 @@ def main():
                 st.error(f"Missing required columns: {', '.join(missing)}")
                 return
 
-            if 'Actual' not in df.columns or 'facility_code' not in df.columns or 'City' not in df.columns:
+            if 'Store X PID ROS' not in df.columns or 'facility_code' not in df.columns or 'City' not in df.columns:
                 st.error("Your file must include 'Actual', 'facility_code', and 'City' columns for analysis.")
                 return
 
