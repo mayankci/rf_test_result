@@ -5,3 +5,14 @@ matplotlib
 seaborn
 joblib
 gdown
+scikit-learn
+pandas
+numpy
+joblib
+matplotlib
+seaborn
+xgboost
+lightgbm
+catboost
+requests
+gdown
