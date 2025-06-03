@@ -39,49 +39,59 @@ def analyze_prediction_distribution(df, store_code):
 def main():
     st.title("📊 Store Prediction vs Actual Distribution")
 
-    # Google Drive CSV download link
-    file_id = "16mT7GtKKfNBxrSPp8A-CFJHtEdy4P102"
-    url = f"https://drive.google.com/uc?export=download&id={file_id}"
+    # File uploader
+    uploaded_file = st.file_uploader("📁 Upload CSV file (with 'facility_code', 'City', 'RandomForest_Prediction', 'Actual')", type=["csv"])
 
-    # Load dataset
-    df = pd.read_csv(url)
+    if uploaded_file is not None:
+        try:
+            # Load dataset
+            df = pd.read_csv(uploaded_file)
 
-    # Filter out invalid store codes
-    df = df[~df['facility_code'].str.startswith("LKST01")]
+            # Check required columns
+            required_columns = {'facility_code', 'City', 'RandomForest_Prediction', 'Actual'}
+            if not required_columns.issubset(df.columns):
+                st.error(f"The file must contain columns: {', '.join(required_columns)}")
+                return
 
-    # Drop duplicates to get unique store-city pairs
-    df_unique = df[['facility_code', 'City']].drop_duplicates()
+            # Filter out invalid store codes
+            df = df[~df['facility_code'].astype(str).str.startswith("LKST01")]
 
-    # First Dropdown: City
-    cities = sorted(df_unique['City'].dropna().unique())
-    selected_city = st.selectbox("🏙️ Select City", cities)
+            # Drop duplicates to get unique store-city pairs
+            df_unique = df[['facility_code', 'City']].drop_duplicates()
 
-    # Second Dropdown: Stores in that City
-    stores_in_city = df_unique[df_unique['City'] == selected_city]
-    store_options = sorted(stores_in_city['facility_code'].unique())
-    selected_store = st.selectbox("🏬 Select Store in " + selected_city, store_options)
+            # First Dropdown: City
+            cities = sorted(df_unique['City'].dropna().unique())
+            selected_city = st.selectbox("🏙️ Select City", cities)
 
-    if selected_store:
-        count_matrix = analyze_prediction_distribution(df, selected_store)
+            # Second Dropdown: Stores in that City
+            stores_in_city = df_unique[df_unique['City'] == selected_city]
+            store_options = sorted(stores_in_city['facility_code'].unique())
+            selected_store = st.selectbox("🏬 Select Store in " + selected_city, store_options)
 
-        # Format index
-        count_matrix.index = [f"{val:.1f}" for val in count_matrix.index]
+            if selected_store:
+                count_matrix = analyze_prediction_distribution(df, selected_store)
 
-        # Display table
-        st.subheader(f"🧾 Distribution Table — Store {selected_store}")
-        st.dataframe(count_matrix)
+                # Format index
+                count_matrix.index = [f"{val:.1f}" for val in count_matrix.index]
 
-        # Heatmap
-        st.subheader("🔥 Heatmap of Prediction vs Ratio")
-        plt.figure(figsize=(16, 10))
-        sns.heatmap(count_matrix.iloc[:, :-1], annot=True, fmt='d', cmap='Blues')
-        plt.yticks(rotation=0)
-        plt.ylabel('Ratio (Prediction / Actual, rounded to 0.1)')
-        plt.xlabel('Predicted ROS (Rounded to 0.01)')
-        plt.title(f'Prediction vs Actual Ratio — Store {selected_store}')
-        st.pyplot(plt.gcf())
-        plt.clf()
+                # Display table
+                st.subheader(f"🧾 Distribution Table — Store {selected_store}")
+                st.dataframe(count_matrix)
 
+                # Heatmap
+                st.subheader("🔥 Heatmap of Prediction vs Ratio")
+                plt.figure(figsize=(16, 10))
+                sns.heatmap(count_matrix.iloc[:, :-1], annot=True, fmt='d', cmap='Blues')
+                plt.yticks(rotation=0)
+                plt.ylabel('Ratio (Prediction / Actual, rounded to 0.1)')
+                plt.xlabel('Predicted ROS (Rounded to 0.01)')
+                plt.title(f'Prediction vs Actual Ratio — Store {selected_store}')
+                st.pyplot(plt.gcf())
+                plt.clf()
+        except Exception as e:
+            st.error(f"❌ Error loading file: {e}")
+    else:
+        st.info("⬆️ Please upload a valid CSV file to continue.")
 
 # Run Streamlit app
 if __name__ == "__main__":
