@@ -43,15 +43,15 @@ categorical_cols = ['AG GROUP']
 
 def analyze_prediction_distribution(df, store_code):
     store_df = df[df['facility_code'] == store_code].copy()
-    store_df['Ratio'] = store_df['Predicted Store X PID ROS'] / store_df['Actual'].replace(0, np.nan)
+    store_df['Ratio'] = store_df['RandomForest_Prediction'] / store_df['Actual'].replace(0, np.nan)
     store_df['Ratio'] = store_df['Ratio'].fillna(0)
     store_df['Ratio'] = round(store_df['Ratio'] / 0.1).astype(int) * 0.1
     store_df['Actual'] = round(store_df['Actual'] / 0.1).astype(int) * 0.1
-    store_df['Predicted Store X PID ROS'] = round(store_df['Predicted Store X PID ROS'] / 0.01).astype(int) * 0.01
+    store_df['RandomForest_Prediction'] = round(store_df['RandomForest_Prediction'] / 0.01).astype(int) * 0.01
 
     count_matrix = store_df.pivot_table(
         index='Ratio',
-        columns='Predicted Store X PID ROS',
+        columns='RandomForest_Prediction',
         aggfunc='size',
         fill_value=0
     )
